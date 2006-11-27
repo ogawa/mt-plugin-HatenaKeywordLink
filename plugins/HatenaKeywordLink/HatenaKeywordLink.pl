@@ -12,12 +12,12 @@ use strict;
 use MT;
 use base 'MT::Plugin';
 use vars qw($VERSION);
-$VERSION = '0.01';
+$VERSION = '0.02';
 
 my $plugin = __PACKAGE__->new({
     name => 'HatenaKeywordLink',
     description => 'This plugin enables MT to set "Hatena Diary Keyword" links to the entry body.',
-    doc_link => 'http://code.as-is.net/wiki/HatenaKeywordLink',
+    doc_link => 'http://code.as-is.net/wiki/HatenaKeywordLink_Plugin',
     author_name => 'Hirotaka Ogawa',
     author_link => 'http://profile.typekey.com/ogawa/',
     version => $VERSION,
@@ -28,8 +28,9 @@ my $plugin = __PACKAGE__->new({
 });
 MT->add_plugin($plugin);
 
-# global filter
+# global filter and container
 MT::Template::Context->add_global_filter('hatena_keyword_link', \&flt_link);
+MT::Template::Context->add_container_tag(HatenaKeywordLink => \&ctr_link);
 
 # pre_save handler
 MT->add_callback('MT::Entry::pre_save', 5, $plugin, \&pre_save_link);
@@ -41,6 +42,19 @@ use XMLRPC::Lite;
 sub flt_link {
     my ($str, $val, $ctx) = @_;
     return $str unless $str && $val;
+
+    my $enc = MT::ConfigMgr->instance->PublishCharset;
+    my $text = rpc_setKeywordLink(encode_text($str, $enc, 'utf-8'));
+    return encode_text($text, 'utf-8', $enc) if $text;
+    $str;
+}
+
+sub ctr_link {
+    my ($ctx, $args, $cond) = @_;
+    my $builder = $ctx->stash('builder');
+    my $tokens = $ctx->stash('tokens');
+    defined(my $str = $builder->build($ctx, $tokens))
+	or return $ctx->error($builder->errstr);
 
     my $enc = MT::ConfigMgr->instance->PublishCharset;
     my $text = rpc_setKeywordLink(encode_text($str, $enc, 'utf-8'));
